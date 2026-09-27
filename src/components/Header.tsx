@@ -14,6 +14,7 @@ interface HeaderProps {
   onOpenHistory: () => void;
   onOpenCareerStats: () => void;
   onOpenOnlineLobby: () => void;
+  onBackToLobby?: () => void;
   isOnlineMode: boolean;
   onlineRoomCode?: string;
   onlineCount?: number;
@@ -31,6 +32,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenHistory,
   onOpenCareerStats,
   onOpenOnlineLobby,
+  onBackToLobby,
   isOnlineMode,
   onlineRoomCode,
   onlineCount = 1,
@@ -39,11 +41,21 @@ export const Header: React.FC<HeaderProps> = ({
   const t = TRANSLATIONS[language];
 
   return (
-    <header className="flex items-center justify-between px-3 sm:px-6 py-2.5 sm:py-3 border-b border-amber-500/30 bg-gradient-to-r from-neutral-950/95 via-stone-950/90 to-neutral-950/95 backdrop-blur-md sticky top-0 z-30 shadow-[0_4px_20px_rgba(0,0,0,0.6)]">
-      {/* Brand & Wordmark */}
+    <header className="flex items-center justify-between px-3 sm:px-6 py-2 sm:py-2.5 border-b border-amber-500/30 bg-gradient-to-r from-neutral-950/95 via-stone-950/90 to-neutral-950/95 backdrop-blur-md sticky top-0 z-30 shadow-[0_4px_20px_rgba(0,0,0,0.6)]">
+      {/* Brand & Wordmark / Home Return */}
       <div className="flex items-center gap-2">
+        {onBackToLobby && (
+          <button
+            onClick={onBackToLobby}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-gradient-to-b from-amber-400 to-yellow-600 text-neutral-950 font-black text-xs shadow-md border border-white hover:brightness-110 active:scale-95 transition-all cursor-pointer mr-1"
+            title={language === 'hi' ? 'मुख्य स्क्रीन / लॉबी' : 'Return to Main Lobby'}
+          >
+            <span>🏠</span>
+            <span className="hidden sm:inline uppercase tracking-wider">{language === 'hi' ? 'लॉबी' : 'LOBBY'}</span>
+          </button>
+        )}
         <span className="text-lg sm:text-2xl font-black tracking-tight text-amber-400 font-serif flex items-center gap-1.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-          <span className="text-xl sm:text-2xl">🃏</span>
+          <span className="text-xl sm:text-2xl">👑</span>
           <span className="bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-500 bg-clip-text text-transparent">
             {t.appName}
           </span>

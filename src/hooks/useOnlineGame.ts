@@ -64,6 +64,13 @@ export interface ChatMessage {
   timestamp: number;
 }
 
+export const GAME_SERVER_API_URL =
+  import.meta.env.VITE_GAME_SERVER_URL || 'https://your-game-server.onrender.com';
+
+export const GAME_SERVER_WS_URL = GAME_SERVER_API_URL
+  .replace(/^http:/i, 'ws:')
+  .replace(/^https:/i, 'wss:');
+
 export function useOnlineGame() {
   const [isConnected, setIsConnected] = useState(false);
   const [room, setRoom] = useState<OnlineRoomData | null>(null);
@@ -90,49 +97,63 @@ export function useOnlineGame() {
       setConnecting(true);
       setError(null);
 
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}`;
+      // Primary server: https://your-game-server.onrender.com -> wss://your-game-server.onrender.com
+      const primaryWsUrl = GAME_SERVER_WS_URL;
+      const fallbackWsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
 
-      try {
-        const ws = new WebSocket(wsUrl);
+      const attemptConnect = (targetUrl: string, isFallback = false) => {
+        try {
+          const ws = new WebSocket(targetUrl);
 
-        ws.onopen = () => {
-          setIsConnected(true);
-          setConnecting(false);
-          // Request global stats immediately
-          ws.send(JSON.stringify({ type: 'GET_GLOBAL_STATS' }));
-          resolve(ws);
-        };
+          ws.onopen = () => {
+            setIsConnected(true);
+            setConnecting(false);
+            // Request global stats immediately
+            ws.send(JSON.stringify({ type: 'GET_GLOBAL_STATS' }));
+            resolve(ws);
+          };
 
-        ws.onmessage = (event) => {
-          try {
-            const message = JSON.parse(event.data);
-            handleIncomingMessage(message);
-          } catch (err) {
-            console.error('Failed to parse WS message:', err);
+          ws.onmessage = (event) => {
+            try {
+              const message = JSON.parse(event.data);
+              handleIncomingMessage(message);
+            } catch (err) {
+              console.error('Failed to parse WS message:', err);
+            }
+          };
+
+          ws.onerror = (e) => {
+            console.warn(`WebSocket error on ${targetUrl}:`, e);
+            if (!isFallback && targetUrl !== fallbackWsUrl) {
+              console.info(`Attempting local host fallback: ${fallbackWsUrl}`);
+              attemptConnect(fallbackWsUrl, true);
+              return;
+            }
+            setIsConnected(false);
+            setConnecting(false);
+            setError(`Could not connect to online multiplayer server (${targetUrl}).`);
+            reject(e);
+          };
+
+          ws.onclose = () => {
+            setIsConnected(false);
+            setConnecting(false);
+            socketRef.current = null;
+          };
+
+          socketRef.current = ws;
+        } catch (err) {
+          if (!isFallback && targetUrl !== fallbackWsUrl) {
+            attemptConnect(fallbackWsUrl, true);
+            return;
           }
-        };
-
-        ws.onerror = (e) => {
-          console.warn('WebSocket connection error:', e);
-          setIsConnected(false);
           setConnecting(false);
-          setError('Could not connect to online multiplayer server.');
-          reject(e);
-        };
+          setError('WebSocket not supported or failed to connect.');
+          reject(err);
+        }
+      };
 
-        ws.onclose = () => {
-          setIsConnected(false);
-          setConnecting(false);
-          socketRef.current = null;
-        };
-
-        socketRef.current = ws;
-      } catch (err) {
-        setConnecting(false);
-        setError('WebSocket not supported or failed to connect.');
-        reject(err);
-      }
+      attemptConnect(primaryWsUrl);
     });
   }, []);
 

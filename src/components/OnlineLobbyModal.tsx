@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Language } from '../types/game';
-import { GlobalStats, OnlineRoomData, PublicRoomItem } from '../hooks/useOnlineGame';
+import { GlobalStats, OnlineRoomData, PublicRoomItem, GAME_SERVER_API_URL } from '../hooks/useOnlineGame';
 import { TRANSLATIONS } from '../utils/translations';
 import {
   Globe,
@@ -607,6 +607,17 @@ export const OnlineLobbyModal: React.FC<OnlineLobbyModalProps> = ({
             )}
           </div>
         )}
+
+        {/* Server Endpoint Indicator */}
+        <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[10px] text-neutral-400 font-mono">
+          <span className="flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Server:</span>
+          </span>
+          <span className="text-amber-300 truncate max-w-[240px]" title={GAME_SERVER_API_URL}>
+            {GAME_SERVER_API_URL}
+          </span>
+        </div>
       </div>
     </div>
   );

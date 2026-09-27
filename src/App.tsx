@@ -40,6 +40,17 @@ import { HistoryModal } from './components/HistoryModal';
 import { CareerStatsModal } from './components/CareerStatsModal';
 import { OnlineLobbyModal } from './components/OnlineLobbyModal';
 import { OnlineChatWidget } from './components/OnlineChatWidget';
+import { MainScreen } from './components/MainScreen';
+import { SpinWheelModal } from './components/SpinWheelModal';
+import { StoreModal } from './components/StoreModal';
+import { AddaModal } from './components/AddaModal';
+import { EventModal } from './components/EventModal';
+import { SevenUpDownModal } from './components/SevenUpDownModal';
+import { PassNPlaySetupModal } from './components/PassNPlaySetupModal';
+import { RewardVideoModal } from './components/RewardVideoModal';
+import { ProfileEditModal } from './components/ProfileEditModal';
+import { FriendsRoomModal } from './components/FriendsRoomModal';
+import { InventoryModal } from './components/InventoryModal';
 import { Info, Sparkles } from 'lucide-react';
 
 const INITIAL_SETTINGS: GameSettings = {
@@ -110,6 +121,51 @@ export default function App() {
   const [sortMode, setSortMode] = useState<HandSortMode>('suit');
   const [statusMessage, setStatusMessage] = useState<string>('');
 
+  // Screen mode: 'lobby' (Ludo King style Main Screen) or 'game' (Playing Table)
+  const [currentScreen, setCurrentScreen] = useState<'lobby' | 'game'>('lobby');
+  const [gameSubMode, setGameSubMode] = useState<'bot' | 'pass'>('bot');
+
+  // Currency system (matches user screenshot: 3,920 coins, 150 gems)
+  const [coins, setCoins] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('badam_coins');
+      if (saved) return Number(saved);
+    } catch {}
+    return 3920;
+  });
+  const [gems, setGems] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('badam_gems');
+      if (saved) return Number(saved);
+    } catch {}
+    return 150;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('badam_coins', coins.toString());
+  }, [coins]);
+
+  useEffect(() => {
+    localStorage.setItem('badam_gems', gems.toString());
+  }, [gems]);
+
+  const handleAddCurrency = (addCoins: number, addGems: number) => {
+    setCoins((c) => c + addCoins);
+    setGems((g) => g + addGems);
+  };
+
+  const [profile, setProfile] = useState<{ name: string; avatar: string }>(() => {
+    try {
+      const saved = localStorage.getItem('badam_profile');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return { name: 'Player 1', avatar: '👑' };
+  });
+
+  useEffect(() => {
+    localStorage.setItem('badam_profile', JSON.stringify(profile));
+  }, [profile]);
+
   // Modals
   const [isRulesOpen, setIsRulesOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -117,6 +173,16 @@ export default function App() {
   const [isCareerOpen, setIsCareerOpen] = useState(false);
   const [isOnlineLobbyOpen, setIsOnlineLobbyOpen] = useState(false);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+  const [isSpinOpen, setIsSpinOpen] = useState(false);
+  const [isShopOpen, setIsShopOpen] = useState(false);
+  const [isAddaOpen, setIsAddaOpen] = useState(false);
+  const [isEventsOpen, setIsEventsOpen] = useState(false);
+  const [isSevenUpOpen, setIsSevenUpOpen] = useState(false);
+  const [isPassNPlayOpen, setIsPassNPlayOpen] = useState(false);
+  const [isRewardVideoOpen, setIsRewardVideoOpen] = useState(false);
+  const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
+  const [isFriendsOpen, setIsFriendsOpen] = useState(false);
+  const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [winnerIndex, setWinnerIndex] = useState<number>(0);
 
   const botTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -148,7 +214,7 @@ export default function App() {
   /**
    * Start a fresh round in solo offline mode
    */
-  const startNewSoloRound = useCallback(() => {
+  const startNewSoloRound = useCallback((mode: 'bot' | 'pass' = gameSubMode) => {
     if (botTimerRef.current) clearTimeout(botTimerRef.current);
     sounds.playShuffle();
 
@@ -167,11 +233,12 @@ export default function App() {
       }
     }
 
+    const isPass = mode === 'pass';
     const newPlayers: Player[] = [
-      { id: 0, name: BOT_NAMES[settings.language][0], isBot: false, avatar: '👤', hand: pHands[0] },
-      { id: 1, name: BOT_NAMES[settings.language][1], isBot: true, avatar: '🦁', hand: pHands[1] },
-      { id: 2, name: BOT_NAMES[settings.language][2], isBot: true, avatar: '🐯', hand: pHands[2] },
-      { id: 3, name: BOT_NAMES[settings.language][3], isBot: true, avatar: '🦅', hand: pHands[3] },
+      { id: 0, name: isPass ? (settings.language === 'hi' ? 'खिलाड़ी 1' : 'Player 1') : profile.name, isBot: false, avatar: profile.avatar, hand: pHands[0] },
+      { id: 1, name: isPass ? (settings.language === 'hi' ? 'खिलाड़ी 2' : 'Player 2') : BOT_NAMES[settings.language][1], isBot: !isPass, avatar: '🦁', hand: pHands[1] },
+      { id: 2, name: isPass ? (settings.language === 'hi' ? 'खिलाड़ी 3' : 'Player 3') : BOT_NAMES[settings.language][2], isBot: !isPass, avatar: '🐯', hand: pHands[2] },
+      { id: 3, name: isPass ? (settings.language === 'hi' ? 'खिलाड़ी 4' : 'Player 4') : BOT_NAMES[settings.language][3], isBot: !isPass, avatar: '🦅', hand: pHands[3] },
     ];
 
     setBoard(createEmptyBoard());
@@ -183,7 +250,47 @@ export default function App() {
 
     const t = TRANSLATIONS[settings.language];
     setStatusMessage(t.starterPrompt.replace('{name}', newPlayers[holder].name));
-  }, [settings.language]);
+  }, [gameSubMode, profile.avatar, profile.name, settings.language]);
+
+  const handleStartPassNPlayMatch = (names: string[], avatars: string[]) => {
+    setIsPassNPlayOpen(false);
+    setGameSubMode('pass');
+    setCurrentScreen('game');
+
+    if (botTimerRef.current) clearTimeout(botTimerRef.current);
+    sounds.playShuffle();
+
+    const deck = createDeck();
+    const pHands: Card[][] = [[], [], [], []];
+    deck.forEach((card, idx) => {
+      pHands[idx % 4].push(card);
+    });
+
+    let holder = 0;
+    for (let p = 0; p < 4; p++) {
+      if (pHands[p].some((c) => c.suit === '♥' && c.rank === 6)) {
+        holder = p;
+        break;
+      }
+    }
+
+    const newPlayers: Player[] = [
+      { id: 0, name: names[0] || profile.name, isBot: false, avatar: avatars[0] || profile.avatar, hand: pHands[0] },
+      { id: 1, name: names[1] || 'Player 2', isBot: false, avatar: avatars[1] || '🦁', hand: pHands[1] },
+      { id: 2, name: names[2] || (names.length > 2 ? names[2] : 'Bot Kabir'), isBot: names.length <= 2, avatar: avatars[2] || '🐯', hand: pHands[2] },
+      { id: 3, name: names[3] || (names.length > 3 ? names[3] : 'Bot Priya'), isBot: names.length <= 3, avatar: avatars[3] || '🦅', hand: pHands[3] },
+    ];
+
+    setBoard(createEmptyBoard());
+    setPlayers(newPlayers);
+    setStarterIndex(holder);
+    setCurrentTurn(holder);
+    setFirstMoveMade(false);
+    setIsSummaryOpen(false);
+
+    const t = TRANSLATIONS[settings.language];
+    setStatusMessage(t.starterPrompt.replace('{name}', newPlayers[holder].name));
+  };
 
   // Start initial round on mount
   useEffect(() => {
@@ -211,10 +318,15 @@ export default function App() {
     };
     setHistory((prev) => [result, ...prev]);
 
-    // Record career stats
+    // Record career stats & reward coins for winning
     const userWon = roundWinner === 0;
     const userPenalty = roundPenalties[0];
     const isSixStarter = starterIndex === 0;
+
+    if (userWon) {
+      setCoins((c) => c + 350);
+      sounds.playCoinCollect();
+    }
 
     setCareerStats((prev) =>
       recordRoundOutcome(prev, {
@@ -227,10 +339,11 @@ export default function App() {
   };
 
   /**
-   * Human Move in Solo Mode
+   * Human Move in Solo / Pass N Play Mode
    */
   const handleHumanPlayCard = (card: Card) => {
-    if (currentTurn !== 0) return;
+    const activePlayer = players[currentTurn];
+    if (!activePlayer || activePlayer.isBot) return;
 
     if (!isValidMove(card, board)) {
       sounds.playInvalid();
@@ -240,14 +353,14 @@ export default function App() {
 
     sounds.playCardClack();
     const newBoard = applyMoveToBoard(board, card);
-    const newHand = players[0].hand.filter((c) => c.id !== card.id);
+    const newHand = activePlayer.hand.filter((c) => c.id !== card.id);
 
     setBoard(newBoard);
     setFirstMoveMade(true);
 
     setPlayers((prev) =>
       prev.map((p) =>
-        p.id === 0
+        p.id === activePlayer.id
           ? {
               ...p,
               hand: newHand,
@@ -259,20 +372,22 @@ export default function App() {
 
     // Check Win
     if (newHand.length === 0) {
-      handleRoundEnd(0);
+      handleRoundEnd(activePlayer.id);
       return;
     }
 
     // Advance turn
-    setCurrentTurn(1);
+    setCurrentTurn((prev) => (prev + 1) % 4);
   };
 
   /**
-   * Human Pass in Solo Mode
+   * Human Pass in Solo / Pass N Play Mode
    */
   const handleHumanPass = () => {
-    if (currentTurn !== 0) return;
-    const valid = getValidMoves(players[0].hand, board);
+    const activePlayer = players[currentTurn];
+    if (!activePlayer || activePlayer.isBot) return;
+
+    const valid = getValidMoves(activePlayer.hand, board);
     if (valid.length > 0) {
       sounds.playInvalid();
       setStatusMessage(TRANSLATIONS[settings.language].cantPassWithValidMoves);
@@ -282,7 +397,7 @@ export default function App() {
     sounds.playPassSound();
     setPlayers((prev) =>
       prev.map((p) =>
-        p.id === 0
+        p.id === activePlayer.id
           ? {
               ...p,
               lastAction: { type: 'pass', timestamp: Date.now() },
@@ -291,7 +406,7 @@ export default function App() {
       )
     );
 
-    setCurrentTurn(1);
+    setCurrentTurn((prev) => (prev + 1) % 4);
   };
 
   /**
@@ -299,7 +414,7 @@ export default function App() {
    */
   useEffect(() => {
     if (isOnlineMode) return;
-    if (currentTurn === 0) return;
+    if (players[currentTurn] && !players[currentTurn].isBot) return;
     if (isSummaryOpen) return;
 
     const bot = players[currentTurn];
@@ -385,14 +500,22 @@ export default function App() {
     ? onlineRoom.players.findIndex((p) => p.id === myPlayerId)
     : 0;
 
+  const activeHumanIndex = isOnlineMode
+    ? myOnlineIndex
+    : gameSubMode === 'pass'
+    ? currentTurn
+    : 0;
+
   const activeTurn = isOnlineMode && onlineRoom ? onlineRoom.currentTurn : currentTurn;
   const isMyTurn = isOnlineMode
     ? activeTurn === myOnlineIndex
+    : gameSubMode === 'pass'
+    ? !players[currentTurn]?.isBot
     : currentTurn === 0;
 
   const myHand = isOnlineMode && onlineRoom && myPlayerId
     ? onlineRoom.players.find((p) => p.id === myPlayerId)?.hand || []
-    : players[0].hand;
+    : players[activeHumanIndex]?.hand || [];
 
   const myValidMoves = getValidMoves(myHand, activeBoard);
 
@@ -425,6 +548,177 @@ export default function App() {
     }
   };
 
+  // Render Ludo King Style Main Screen Lobby
+  if (currentScreen === 'lobby' && !isOnlineMode) {
+    return (
+      <>
+        <MainScreen
+          onStartSolo={(mode = 'bot') => {
+            setGameSubMode(mode);
+            setCurrentScreen('game');
+            startNewSoloRound(mode);
+          }}
+          onOpenOnlineLobby={() => {
+            setIsOnlineLobbyOpen(true);
+          }}
+          onOpenFriends={() => setIsFriendsOpen(true)}
+          onOpenPassNPlaySetup={() => setIsPassNPlayOpen(true)}
+          onOpenSevenUpDown={() => setIsSevenUpOpen(true)}
+          onOpenRewardVideo={() => setIsRewardVideoOpen(true)}
+          onOpenProfileEdit={() => setIsProfileEditOpen(true)}
+          onOpenInventory={() => setIsInventoryOpen(true)}
+          onOpenRules={() => setIsRulesOpen(true)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenCareer={() => setIsCareerOpen(true)}
+          coins={coins}
+          gems={gems}
+          onAddCurrency={handleAddCurrency}
+          playerName={profile.name}
+          avatar={profile.avatar}
+          language={settings.language}
+          onToggleLanguage={() =>
+            setSettings((s) => ({ ...s, language: s.language === 'hi' ? 'en' : 'hi' }))
+          }
+          soundEnabled={settings.soundEnabled}
+          onToggleSound={() =>
+            setSettings((s) => ({ ...s, soundEnabled: !s.soundEnabled }))
+          }
+          onOpenSpin={() => setIsSpinOpen(true)}
+          onOpenShop={() => setIsShopOpen(true)}
+          onOpenAdda={() => setIsAddaOpen(true)}
+          onOpenEvents={() => setIsEventsOpen(true)}
+        />
+
+        {/* Modals available from Main Screen */}
+        <RulesModal
+          isOpen={isRulesOpen}
+          onClose={() => setIsRulesOpen(false)}
+          language={settings.language}
+        />
+        <SettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          settings={settings}
+          onUpdateSettings={(newSet) => setSettings((prev) => ({ ...prev, ...newSet }))}
+          onResetTournament={() => {
+            setScores([0, 0, 0, 0]);
+            setRoundNumber(1);
+            setHistory([]);
+            startNewSoloRound();
+          }}
+        />
+        <CareerStatsModal
+          isOpen={isCareerOpen}
+          onClose={() => setIsCareerOpen(false)}
+          stats={careerStats}
+          onResetStats={() => {
+            const fresh = DEFAULT_CAREER_STATS;
+            setCareerStats(fresh);
+            saveCareerStats(fresh);
+          }}
+          language={settings.language}
+        />
+        <OnlineLobbyModal
+          isOpen={isOnlineLobbyOpen}
+          onClose={() => setIsOnlineLobbyOpen(false)}
+          room={onlineRoom}
+          myPlayerId={myPlayerId}
+          globalStats={globalStats}
+          onQuickMatch={quickMatch}
+          onCreateRoom={createRoom}
+          onJoinRoom={joinRoom}
+          onRefreshStats={refreshGlobalStats}
+          onStartGame={() => {
+            startOnlineGame();
+            setCurrentScreen('game');
+          }}
+          onLeaveRoom={leaveOnlineRoom}
+          language={settings.language}
+          error={onlineError}
+          connecting={onlineConnecting}
+        />
+        <SpinWheelModal
+          isOpen={isSpinOpen}
+          onClose={() => setIsSpinOpen(false)}
+          onReward={(addCoins, addGems) => handleAddCurrency(addCoins, addGems)}
+          language={settings.language}
+        />
+        <StoreModal
+          isOpen={isShopOpen}
+          onClose={() => setIsShopOpen(false)}
+          coins={coins}
+          gems={gems}
+          onAddCurrency={handleAddCurrency}
+          language={settings.language}
+        />
+        <AddaModal
+          isOpen={isAddaOpen}
+          onClose={() => setIsAddaOpen(false)}
+          onJoinRoom={() => {
+            setIsAddaOpen(false);
+            setIsOnlineLobbyOpen(true);
+          }}
+          language={settings.language}
+        />
+        <EventModal
+          isOpen={isEventsOpen}
+          onClose={() => setIsEventsOpen(false)}
+          onStartTournament={() => {
+            setIsEventsOpen(false);
+            setGameSubMode('bot');
+            setCurrentScreen('game');
+            startNewSoloRound('bot');
+          }}
+          language={settings.language}
+        />
+        <SevenUpDownModal
+          isOpen={isSevenUpOpen}
+          onClose={() => setIsSevenUpOpen(false)}
+          coins={coins}
+          onUpdateCoins={(delta) => setCoins((c) => Math.max(0, c + delta))}
+          language={settings.language}
+        />
+        <PassNPlaySetupModal
+          isOpen={isPassNPlayOpen}
+          onClose={() => setIsPassNPlayOpen(false)}
+          onStartMatch={handleStartPassNPlayMatch}
+          language={settings.language}
+        />
+        <RewardVideoModal
+          isOpen={isRewardVideoOpen}
+          onClose={() => setIsRewardVideoOpen(false)}
+          onReward={(rew) => handleAddCurrency(rew, 0)}
+          language={settings.language}
+        />
+        <ProfileEditModal
+          isOpen={isProfileEditOpen}
+          onClose={() => setIsProfileEditOpen(false)}
+          playerName={profile.name}
+          avatar={profile.avatar}
+          onSaveProfile={(newName, newAvatar) => setProfile({ name: newName, avatar: newAvatar })}
+          coins={coins}
+          gems={gems}
+          language={settings.language}
+        />
+        <FriendsRoomModal
+          isOpen={isFriendsOpen}
+          onClose={() => setIsFriendsOpen(false)}
+          onCreateRoom={(pName) => createRoom(pName, false, profile.avatar)}
+          onJoinRoom={(code, pName) => joinRoom(code, pName, profile.avatar)}
+          playerName={profile.name}
+          language={settings.language}
+        />
+        <InventoryModal
+          isOpen={isInventoryOpen}
+          onClose={() => setIsInventoryOpen(false)}
+          currentTheme={settings.theme}
+          onSelectTheme={(th) => setSettings((prev) => ({ ...prev, theme: th }))}
+          language={settings.language}
+        />
+      </>
+    );
+  }
+
   return (
     <div
       className={`min-h-screen ${themeGradients[settings.theme]} text-neutral-100 flex flex-col font-sans transition-colors duration-500`}
@@ -444,6 +738,7 @@ export default function App() {
         onOpenHistory={() => setIsHistoryOpen(true)}
         onOpenCareerStats={() => setIsCareerOpen(true)}
         onOpenOnlineLobby={() => setIsOnlineLobbyOpen(true)}
+        onBackToLobby={() => setCurrentScreen('lobby')}
         isOnlineMode={isOnlineMode}
         onlineRoomCode={onlineRoom?.code}
         onlineCount={globalStats.onlinePlayers}
@@ -554,16 +849,28 @@ export default function App() {
           </div>
         </div>
 
+        {/* Pass N Play Turn Indicator */}
+        {gameSubMode === 'pass' && (
+          <div className="flex items-center justify-center -mb-1">
+            <span className="bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-neutral-950 font-black text-xs px-3 py-1 rounded-full shadow border border-white flex items-center gap-1.5 animate-pulse">
+              <span>📱</span>
+              <span>{settings.language === 'hi' ? `बारी: ${players[activeHumanIndex]?.name}` : `Current Turn: ${players[activeHumanIndex]?.name}`}</span>
+            </span>
+          </div>
+        )}
+
         {/* Bottom Section: Human Player Hand */}
         <section className="w-full pb-2">
           <PlayerHand
             player={{
-              id: 0,
+              id: activeHumanIndex,
               name: isOnlineMode && onlineRoom && myPlayerId
                 ? onlineRoom.players.find((p) => p.id === myPlayerId)?.name || 'You'
-                : players[0].name,
+                : players[activeHumanIndex]?.name || profile.name,
               isBot: false,
-              avatar: '👤',
+              avatar: isOnlineMode && onlineRoom && myPlayerId
+                ? onlineRoom.players.find((p) => p.id === myPlayerId)?.avatar || '👤'
+                : players[activeHumanIndex]?.avatar || profile.avatar,
               hand: myHand,
             }}
             isCurrentTurn={isMyTurn}
@@ -679,6 +986,85 @@ export default function App() {
           setCareerStats(fresh);
           saveCareerStats(fresh);
         }}
+        language={settings.language}
+      />
+
+      <SpinWheelModal
+        isOpen={isSpinOpen}
+        onClose={() => setIsSpinOpen(false)}
+        onReward={(addCoins, addGems) => handleAddCurrency(addCoins, addGems)}
+        language={settings.language}
+      />
+      <StoreModal
+        isOpen={isShopOpen}
+        onClose={() => setIsShopOpen(false)}
+        coins={coins}
+        gems={gems}
+        onAddCurrency={handleAddCurrency}
+        language={settings.language}
+      />
+      <AddaModal
+        isOpen={isAddaOpen}
+        onClose={() => setIsAddaOpen(false)}
+        onJoinRoom={() => {
+          setIsAddaOpen(false);
+          setIsOnlineLobbyOpen(true);
+        }}
+        language={settings.language}
+      />
+      <EventModal
+        isOpen={isEventsOpen}
+        onClose={() => setIsEventsOpen(false)}
+        onStartTournament={() => {
+          setIsEventsOpen(false);
+          setGameSubMode('bot');
+          setCurrentScreen('game');
+          startNewSoloRound('bot');
+        }}
+        language={settings.language}
+      />
+      <SevenUpDownModal
+        isOpen={isSevenUpOpen}
+        onClose={() => setIsSevenUpOpen(false)}
+        coins={coins}
+        onUpdateCoins={(delta) => setCoins((c) => Math.max(0, c + delta))}
+        language={settings.language}
+      />
+      <PassNPlaySetupModal
+        isOpen={isPassNPlayOpen}
+        onClose={() => setIsPassNPlayOpen(false)}
+        onStartMatch={handleStartPassNPlayMatch}
+        language={settings.language}
+      />
+      <RewardVideoModal
+        isOpen={isRewardVideoOpen}
+        onClose={() => setIsRewardVideoOpen(false)}
+        onReward={(rew) => handleAddCurrency(rew, 0)}
+        language={settings.language}
+      />
+      <ProfileEditModal
+        isOpen={isProfileEditOpen}
+        onClose={() => setIsProfileEditOpen(false)}
+        playerName={profile.name}
+        avatar={profile.avatar}
+        onSaveProfile={(newName, newAvatar) => setProfile({ name: newName, avatar: newAvatar })}
+        coins={coins}
+        gems={gems}
+        language={settings.language}
+      />
+      <FriendsRoomModal
+        isOpen={isFriendsOpen}
+        onClose={() => setIsFriendsOpen(false)}
+        onCreateRoom={(pName) => createRoom(pName, false, profile.avatar)}
+        onJoinRoom={(code, pName) => joinRoom(code, pName, profile.avatar)}
+        playerName={profile.name}
+        language={settings.language}
+      />
+      <InventoryModal
+        isOpen={isInventoryOpen}
+        onClose={() => setIsInventoryOpen(false)}
+        currentTheme={settings.theme}
+        onSelectTheme={(th) => setSettings((prev) => ({ ...prev, theme: th }))}
         language={settings.language}
       />
     </div>

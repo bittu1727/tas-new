@@ -723,6 +723,93 @@ function setupWebSocketHandlers(wss: WebSocketServer) {
             break;
           }
 
+          case 'VOICE_CHUNK': {
+            const meta = socketRoomMap.get(ws);
+            if (!meta) return;
+            const room = rooms.get(meta.roomCode);
+            if (!room) return;
+
+            const sender = room.players.find((p) => p.id === meta.playerId);
+            const voicePayload = {
+              senderId: meta.playerId,
+              senderName: sender?.name || 'Player',
+              audio: data.audio,
+              volume: data.volume || 1,
+              timestamp: Date.now(),
+            };
+
+            for (const [client, clientMeta] of socketRoomMap.entries()) {
+              if (
+                clientMeta.roomCode === room.code &&
+                clientMeta.playerId !== meta.playerId &&
+                client.readyState === WebSocket.OPEN
+              ) {
+                client.send(JSON.stringify({
+                  type: 'VOICE_CHUNK',
+                  data: voicePayload,
+                }));
+              }
+            }
+            break;
+          }
+
+          case 'VOICE_STATUS': {
+            const meta = socketRoomMap.get(ws);
+            if (!meta) return;
+            const room = rooms.get(meta.roomCode);
+            if (!room) return;
+
+            for (const [client, clientMeta] of socketRoomMap.entries()) {
+              if (
+                clientMeta.roomCode === room.code &&
+                clientMeta.playerId !== meta.playerId &&
+                client.readyState === WebSocket.OPEN
+              ) {
+                client.send(JSON.stringify({
+                  type: 'PLAYER_VOICE_STATUS',
+                  data: {
+                    playerId: meta.playerId,
+                    isMuted: data.isMuted,
+                    isSpeaking: data.isSpeaking,
+                    isDeafened: data.isDeafened,
+                  },
+                }));
+              }
+            }
+            break;
+          }
+
+          case 'VOICE_PHRASE': {
+            const meta = socketRoomMap.get(ws);
+            if (!meta) return;
+            const room = rooms.get(meta.roomCode);
+            if (!room) return;
+
+            const sender = room.players.find((p) => p.id === meta.playerId);
+            const phrasePayload = {
+              id: `phrase-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+              senderId: meta.playerId,
+              senderName: sender?.name || 'Player',
+              senderAvatar: sender?.avatar || '👤',
+              text: data.text,
+              phraseKey: data.phraseKey,
+              timestamp: Date.now(),
+            };
+
+            for (const [client, clientMeta] of socketRoomMap.entries()) {
+              if (
+                clientMeta.roomCode === room.code &&
+                client.readyState === WebSocket.OPEN
+              ) {
+                client.send(JSON.stringify({
+                  type: 'VOICE_PHRASE',
+                  data: phrasePayload,
+                }));
+              }
+            }
+            break;
+          }
+
           case 'LEAVE_ROOM': {
             handleClientDisconnect(ws, wss);
             break;
